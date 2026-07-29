@@ -30,12 +30,18 @@ mkdirSync(CACHE, { recursive: true });
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 const log = (...a) => console.log('[collect]', ...a);
 
-async function fetchBuf(url, { accept } = {}) {
+async function fetchBuf(url, { accept, timeoutMs = 45000 } = {}) {
   let lastErr;
   for (let attempt = 1; attempt <= 4; attempt++) {
+    // Hard per-attempt timeout: the ABS SDMX/ArcGIS servers tarpit non-browser
+    // clients by holding the socket open, and bare fetch() has no timeout — it
+    // would hang the whole run forever. AbortController guarantees progress.
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), timeoutMs);
     try {
       const res = await fetch(url, {
         redirect: 'follow',
+        signal: ac.signal,
         headers: { 'User-Agent': UA, Accept: accept ?? '*/*', 'Accept-Language': 'en-AU,en;q=0.9' },
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -44,6 +50,8 @@ async function fetchBuf(url, { accept } = {}) {
       lastErr = err;
       log(`  attempt ${attempt} failed for ${url}: ${err.message}`);
       await new Promise((r) => setTimeout(r, attempt * 1500));
+    } finally {
+      clearTimeout(timer);
     }
   }
   throw lastErr;
@@ -319,7 +327,13 @@ async function main() {
 
   writeFileSync(join(OUT, 'meta.json'), JSON.stringify(meta));
   writeFileSync(join(OUT, 'places.json'), JSON.stringify({ suburbs, lgas }));
-  writeFileSync(join(OUT, 'boundaries.geojson'), JSON.stringify(boundaries));
+  // Only overwrite boundaries when we actually built polygons — a failed ArcGIS
+  // fetch must never clobber the committed good file with an empty one.
+  if (boundaries.features.length > 0) {
+    writeFileSync(join(OUT, 'boundaries.geojson'), JSON.stringify(boundaries));
+  } else {
+    log('  boundaries not rebuilt this run — keeping the existing committed boundaries.geojson');
+  }
   log(`wrote meta.json, places.json (${suburbs.length} suburbs, ${lgas.length} LGAs, ${N} quarters), boundaries.geojson (${boundaries.features.length} polygons)`);
   log(`headline: Victoria all-properties median $${medianStart}/wk (${headline.sinceLabel}) → $${medianNow}/wk (${headline.latestLabel}), +${headline.pctChange}%`);
 }
