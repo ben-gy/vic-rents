@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://vic-rents.benrichardson.dev/sitemap.xml

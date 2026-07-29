@@ -1,0 +1,14 @@
+{
+  "name": "vic-rents-pipeline",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Data pipeline for Victorian Rents (DFFH Rental Report → JSON).",
+  "scripts": {
+    "collect": "node collect.mjs",
+    "aggregate": "node aggregate.mjs"
+  },
+  "devDependencies": {
+    "mapshaper": "^0.6.102"
+  }
+}

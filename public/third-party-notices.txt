@@ -1,0 +1,19 @@
+Victorian Rents — third-party notices
+=====================================
+
+First-party code is AGPL-3.0-or-later (see the repository LICENSE).
+
+Bundled runtime components keep their own licences:
+
+Leaflet 1.9.x — BSD-2-Clause
+  Copyright (c) 2010-2024 Volodymyr Agafonkin
+  Copyright (c) 2010-2011 CloudMade
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the copyright notice and the
+  BSD-2-Clause conditions and disclaimer are retained.
+
+Map tiles © CARTO, © OpenStreetMap contributors.
+
+Data sources (CC BY 4.0), attributed in the app's About / Sources panel:
+  - DFFH Rental Report — © State of Victoria (Dept of Families, Fairness and Housing)
+  - Consumer Price Index; ASGS 2024 LGA boundaries — © Commonwealth of Australia (ABS)
