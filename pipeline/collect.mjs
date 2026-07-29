@@ -16,6 +16,9 @@ import { writeFileSync, mkdirSync, existsSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import dns from 'node:dns';
+// The ABS SDMX + ArcGIS servers tarpit IPv6 / datacenter clients; prefer IPv4 on CI.
+dns.setDefaultResultOrder('ipv4first');
 import {
   parseWorkbook, extractSheet, propTypeKey, PROP_TYPES, parseQuarter,
   reconcileMetroVictoria, reconcileLgaSum, totalRow, slug, lgaKey, pct,
@@ -42,7 +45,10 @@ async function fetchBuf(url, { accept, timeoutMs = 45000 } = {}) {
       const res = await fetch(url, {
         redirect: 'follow',
         signal: ac.signal,
-        headers: { 'User-Agent': UA, Accept: accept ?? '*/*', 'Accept-Language': 'en-AU,en;q=0.9' },
+        headers: {
+          'User-Agent': UA, Accept: accept ?? '*/*', 'Accept-Language': 'en-AU,en;q=0.9',
+          'Sec-Fetch-Site': 'none', 'Sec-Fetch-Mode': 'navigate', 'Sec-Fetch-Dest': 'document', 'Cache-Control': 'no-cache',
+        },
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return Buffer.from(await res.arrayBuffer());
@@ -243,9 +249,18 @@ async function main() {
   const metro = metroRow ? { median: remap(lgaSheets.all, metroRow.median), count: remap(lgaSheets.all, metroRow.count) } : null;
   const nonMetro = nonMetroRow ? { median: remap(lgaSheets.all, nonMetroRow.median), count: remap(lgaSheets.all, nonMetroRow.count) } : null;
 
-  // ── CPI aligned to the union timeline ──
+  // ── CPI aligned to the union timeline (resilient: fall back to committed
+  //    values quarter-by-quarter if a CI run's ABS fetch is tarpitted/thin, so
+  //    the real-rent view never blanks out) ──
   const cpiMap = await fetchCpi();
-  const cpi = quarters.map((q) => cpiMap[q.key] ?? null);
+  const committedCpi = {};
+  try {
+    const old = JSON.parse(readFileSync(join(OUT, 'meta.json'), 'utf8'));
+    (old.quarters || []).forEach((q, i) => { if (old.cpi?.[i] != null) committedCpi[q.key] = old.cpi[i]; });
+  } catch { /* first run — no committed meta yet */ }
+  const cpi = quarters.map((q) => cpiMap[q.key] ?? committedCpi[q.key] ?? null);
+  const cpiFresh = quarters.filter((q) => cpiMap[q.key] != null).length;
+  if (cpiFresh < quarters.length / 2) log(`  CPI thin this run (${cpiFresh} fresh); backfilled from committed meta where available`);
 
   // ── boundaries: attach the DFFH LGA match to each polygon ──
   let boundaries = { type: 'FeatureCollection', features: [] };
