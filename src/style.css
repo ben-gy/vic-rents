@@ -1,4 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* The [hidden] guard — MUST stay above the component rules.
+   An author rule like `.modal{display:grid}` or `.drawer{display:flex}` outranks
+   the browser's `[hidden]{display:none}` (author origin beats the UA stylesheet
+   regardless of specificity), so an element hidden via the `hidden` ATTRIBUTE
+   that is also given a `display` by a class is never actually hidden — and
+   `el.hidden = true` does nothing at all. */
+[hidden] { display: none !important; }
+
 :root {
   --bg-base: #f7f6f2;
   --bg-surface: #ffffff;
