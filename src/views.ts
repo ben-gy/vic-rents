@@ -440,11 +440,14 @@ export function insights(el: HTMLElement, st: AppState): void {
     const gapNow = m0[li] != null && n0[li] != null ? (m0[li]! / n0[li]! - 1) * 100 : null;
     if (gapEarly != null && gapNow != null) cards.push({ sev: 'info', title: 'Regional Victoria caught up', body: `Melbourne rents were <strong>${gapEarly.toFixed(0)}%</strong> above regional Victoria at the end of 2019; today the premium is <strong>${gapNow.toFixed(0)}%</strong>. The pandemic move to the regions narrowed a two-decade gap.` });
   }
-  // house vs flat premium widening
+  // 3BR house vs 2BR flat — state-wide medians of different geographic mixes, so the gap can sit either way
   const flat2 = meta.victoria['2bf'].median, house3 = meta.victoria['3bh'].median;
   const prem = (i: number) => (flat2[i] != null && house3[i] != null && flat2[i]! ? (house3[i]! / flat2[i]! - 1) * 100 : null);
-  const fi = firstIdx(house3);
-  if (prem(li) != null && prem(fi) != null) cards.push({ sev: 'info', title: 'Houses pulled further ahead of flats', body: `A 3-bedroom house now rents for <strong>${prem(li)!.toFixed(0)}%</strong> more than a 2-bedroom flat, up from ${prem(fi)!.toFixed(0)}% in ${meta.quarters[fi].label}. Family housing has become the tighter market.` });
+  const fi = meta.quarters.findIndex((_, i) => prem(i) != null), pNow = prem(li), pThen = prem(fi);
+  if (pNow != null && pThen != null && fi !== li) {
+    const rel = (v: number) => (Math.abs(v) < 1 ? 'roughly level' : `${Math.abs(v).toFixed(0)}% ${v > 0 ? 'dearer' : 'cheaper'}`);
+    cards.push({ sev: 'info', title: Math.abs(pNow) < 1 ? 'Houses and flats now rent alike' : `Houses rent ${pNow > 0 ? 'above' : 'below'} flats state-wide`, body: `Victoria's median 3-bedroom house rents for <strong>${fmtMoneyWk(house3[li])}</strong>, its median 2-bedroom flat for <strong>${fmtMoneyWk(flat2[li])}</strong> — ${Math.abs(pNow) < 1 ? 'the two' : 'the house'} <strong>${rel(pNow)}</strong>, ${Math.abs(pNow - pThen) < 1 ? `little changed since ${meta.quarters[fi].label}` : `${pNow > pThen ? 'up' : 'down'} from ${rel(pThen)} in ${meta.quarters[fi].label}`}. These are state-wide medians of different areas: 2-bedroom flats cluster in inner Melbourne, 3-bedroom houses across regional Victoria — not a like-for-like comparison.` });
+  }
 
   el.innerHTML = `
     <div class="view-head"><h2>Insights</h2><p class="view-sub">Patterns picked out automatically from 26 years of the Rental Report. Click a place to dig in.</p></div>
